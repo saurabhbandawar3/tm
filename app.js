@@ -18,7 +18,7 @@ app.post('/tasks', (req, res) => {
     var task = _.pick(req.body, ['ttitle','aName','aEmail','eName','eEmail',
             'deadline','tDetails']);
     console.log(task);
-    MongoClient.connect('mongodb://localhost:27017/taskdb',{useNewUrlParser}, (err, client) => {
+    MongoClient.connect('mongodb://localhost:27017/taskdb',{useNewUrlParser: true}, (err, client) => {
         if (err) {
             return console.log('Unable to connect to MongoDB server');
         }
@@ -66,15 +66,16 @@ app.listen(3000, () => {
     console.log('Server listening to port 3000');
 });
 
-MongoClient.connect('mongodb://localhost:27017/taskdb',{useNewUrlParser: true},(err, client, ) => {
-     if (err) { 
-         return console.log('Unable to connect to MongoDB server');
-     }
-     const db = client.db('taskdb');
-     db.collection('tasks').find().count().then((data) => {
-        
-         console.log(data);
-     },(err)=>{
+MongoClient.connect('mongodb://localhost:27017/taskdb', {
+    useNewUrlParser: true
+}, (err, client, ) => {
+    if (err) {
+        return console.log('Unable to connect to MongoDB server');
+    }
+    const db = client.db('taskdb');
+    db.collection('tasks').find().toArray().then((data) => {
+        console.log(JSON.stringify(data, undefined, 2));
+    }, (err) => {
         console.log('Unable to fetch the records', err);
     });
- });
+});
