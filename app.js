@@ -4,12 +4,17 @@ const app = express();
 const cors = require('cors');
 const _ = require('lodash');
 
+
 var {
     mongoose
 } = require('./db/mongoose');
 var {
     User
 } = require('./models/user')
+
+var {
+    authenticate
+} = require('./middleware/authenticate')
 
 const {
     MongoClient,
@@ -27,12 +32,14 @@ app.post('/users', (req, res) => {
         'username', 'password', 'hnumber', 'mnumber', 'designation', 'dob'
     ]);
     console.log(body);
-    var UsersModel = mongoose.model('users', User);
-    var newuser = new UsersModel(body);
-    newuser.save().then((doc) => {
-        console.log(doc);
-    }, (e) => {
-        console.log('Unable to save user', e);
+    var newuser = new User(body);
+    newuser.save().then((user) => {
+        return user.generateAuthToken();
+    }).then((token)=>{
+        res.header('x-auth',token).send(newuser);
+    }).catch((e) => {
+        console.log(e);
+        res.status(400).send(e);
     });
 });
 
@@ -41,11 +48,10 @@ app.post('/tasks', (req, res) => {
         'deadline', 'tDetails'
     ]);
     console.log(task);
-    var UsersM = mongoose.model('users', User);
-    UsersM.findOneAndUpdate({
+    User.findOneAndUpdate({
             email: req.body.eEmail
         }, {
-            $set: {
+            $push: {
                 tasks: task
             }
         }, {
@@ -55,9 +61,9 @@ app.post('/tasks', (req, res) => {
             console.log(result)
         });
 });
+
 app.get('/users', (req, res) => {
-    var UsersM = mongoose.model('users', User);
-    UsersM.find({}).then((usresData) => {
+    User.find({}).then((usresData) => {
         console.log(usresData);
         res.send({
             usresData
@@ -68,13 +74,22 @@ app.get('/users', (req, res) => {
     });
 });
 
-
 app.post('/login', (req, res) => {
-    const user = {
-        username: req.body.username,
-        password: req.body.password,
-    };
-    console.log(user);
+    var body = _.pick(req.body, ['email', 'password']);
+    console.log(body);
+    User.findByCredentials(body.email, body.password).then((user) => {
+        return user.generateAuthToken().then((token) => {
+            res.header('x-auth', token).send(user);
+        });
+    }).catch((e) => {
+        res.status(400).send();
+    });
+});
+
+
+app.get('/users/me', authenticate, (req, res) => {
+    console.log('res:',req.user);
+   res.send(req.user);
 
 });
 

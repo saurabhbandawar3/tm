@@ -1,27 +1,42 @@
 var mongoose = require('mongoose');
+var validator = require('validator');
+const jwt = require('jsonwebtoken');
+const _ = require('lodash');
 
-var Schema = mongoose.Schema;
-var User = Schema({
+var UserSchema = new mongoose.Schema({
     fname: {
         type: String,
-        required: true
+        required: true,
+        trim: true,
+        minlength:1
     },
     lname: {
         type: String,
-        required: true
+        required: true,
+        trim: true,
+        minlength: 1
     },
     email: {
         type: String,
         required: true,
+        trim: true,
+        minlength: 1,
+        unique:true,
+        validate: validator.isEmail,
+            message: '{VALUE} is not a valid email'
     },
     username: {
         type: String,
-        required: true
+        required: true,
+        unique: true,
+        trim: true,
+        minlength: 1,
     },
     password: {
         type: String,
         require: true,
-
+        trim: true,
+        minlength: 6
     },
     tokens: [{
         access: {
@@ -85,6 +100,44 @@ var User = Schema({
         }
     }],
 });
+
+UserSchema.methods.toJSON= function(    ){
+    var user = this;
+    var userObject = user.toObject();
+
+    return _.pick(userObject, ['fname', 'lname', 'email',
+    'username', 'hnumber', 'mnumber', 'designation', 'dob','tasks'
+    ]);
+}
+UserSchema.methods.generateAuthToken = function () {
+    var user = this;
+    var access = 'auth';
+    var token = jwt.sign({_id: user._id.toHexString(),access}, 'abc123').toString();
+    user.tokens.push({access,token});
+    return user.save().then(() => {
+        return token;
+    });
+} 
+UserSchema.statics.findByToken = function (token) {
+        var User = this;
+        var decoded;
+
+        try {
+            decoded = jwt.verify(token, 'abc123');
+        } catch (e) {
+            return Promise.reject();
+        }
+
+        return User.findOne({
+            '_id': decoded._id,
+            'tokens.token': token,
+            'tokens.access': 'auth'
+        });
+}
+
+
+var User = mongoose.model('users', UserSchema);
+
 
 module.exports ={
     User
